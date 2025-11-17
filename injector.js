@@ -1,4 +1,4 @@
-// Shared injector logic for all chat sites
+// Shared injector logic for all chat sites - Modal trigger version
 (function(config) {
   console.log(`Injector loaded for: ${config.siteName} on ${window.location.hostname}`);
   
@@ -8,59 +8,106 @@
     return;
   }
 
-  console.log(`Creating sidebar for ${config.siteName}`);
+  let modal = null;
 
-  // Wait for DOM to be ready
-  function initSidebar() {
-    // Remove existing sidebar if any
-    const existing = document.getElementById('text-injector-sidebar');
-    if (existing) existing.remove();
+  // Watch target input for /promptchan trigger
+  function watchInput() {
+    const targetInput = document.querySelector(config.targetSelector);
+    if (!targetInput) return;
 
-    // Create sidebar container
-    const sidebar = document.createElement('div');
-    sidebar.id = 'text-injector-sidebar';
-    
-    sidebar.innerHTML = `
-      <div class="sidebar-header">
-        <h3>${config.siteName} Injector</h3>
-      </div>
-      <div class="sidebar-content">
-        <textarea id="inject-textarea" placeholder="Enter text to inject into ${config.siteName}..." rows="8"></textarea>
-        <button id="inject-button">Inject Text</button>
+    const checkTrigger = () => {
+      let inputValue = '';
+      if (config.isContentEditable) {
+        const p = targetInput.querySelector('p');
+        inputValue = p ? p.textContent : targetInput.textContent;
+      } else {
+        inputValue = targetInput.value;
+      }
+
+      if (inputValue.includes('/promptchan')) {
+        showModal();
+        // Clear trigger from input
+        clearTrigger(targetInput);
+      }
+    };
+
+    // Check on input/change events
+    targetInput.addEventListener('input', checkTrigger);
+    targetInput.addEventListener('change', checkTrigger);
+    targetInput.addEventListener('keyup', checkTrigger);
+
+    // Initial check
+    checkTrigger();
+  }
+
+  function clearTrigger(targetInput) {
+    if (config.isContentEditable) {
+      const p = targetInput.querySelector('p');
+      if (p) {
+        const text = p.textContent.replace('/promptchan', '').trim();
+        p.textContent = text || '';
+      }
+    } else {
+      targetInput.value = targetInput.value.replace('/promptchan', '').trim();
+      targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    targetInput.focus();
+  }
+
+  function showModal() {
+    if (modal) return; // Prevent duplicates
+
+    modal = document.createElement('div');
+    modal.id = 'promptchan-modal';
+    modal.innerHTML = `
+      <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>${config.siteName} Injector</h3>
+            <button class="modal-close" id="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <textarea id="inject-textarea" placeholder="Enter text to inject..." rows="8"></textarea>
+            <div class="modal-actions">
+              <button id="inject-button">Inject Text</button>
+              <button id="cancel-button">Cancel</button>
+            </div>
+          </div>
+        </div>
       </div>
     `;
     
-    // Insert sidebar into body
-    document.body.appendChild(sidebar);
-    console.log(`${config.siteName} sidebar created and appended`);
+    document.body.appendChild(modal);
     
-    // Setup event listeners
-    setupEventListeners(config);
-  }
-
-  function setupEventListeners(config) {
-    const injectBtn = document.getElementById('inject-button');
-    const textarea = document.getElementById('inject-textarea');
-    
-    injectBtn.addEventListener('click', function() {
-      injectText(config, textarea);
-    });
-    
-    // Allow Enter + Shift to inject
-    textarea.addEventListener('keydown', function(e) {
+    // Event listeners
+    document.getElementById('modal-close').onclick = hideModal;
+    document.getElementById('cancel-button').onclick = hideModal;
+    document.getElementById('inject-button').onclick = () => injectText();
+    document.getElementById('inject-textarea').onkeydown = (e) => {
       if (e.key === 'Enter' && e.shiftKey) {
-        injectBtn.click();
+        injectText();
       }
-    });
+    };
+
+    // Close on overlay click
+    document.getElementById('modal-overlay').onclick = (e) => {
+      if (e.target.id === 'modal-overlay') hideModal();
+    };
   }
 
-  function injectText(config, textarea) {
+  function hideModal() {
+    if (modal) {
+      modal.remove();
+      modal = null;
+    }
+  }
+
+  function injectText() {
+    const textarea = document.getElementById('inject-textarea');
     const targetInput = document.querySelector(config.targetSelector);
-    console.log(`${config.siteName} inject clicked, targetInput:`, targetInput);
     
     if (targetInput && textarea.value.trim()) {
       if (config.isContentEditable) {
-        // For ChatGPT contenteditable div - replace inner p content
         const pElement = targetInput.querySelector('p');
         if (pElement) {
           pElement.textContent = textarea.value;
@@ -71,34 +118,26 @@
         targetInput.dispatchEvent(new Event('change', { bubbles: true }));
         targetInput.focus();
       } else {
-        // Standard textarea/input
         targetInput.value = textarea.value;
         targetInput.dispatchEvent(new Event('input', { bubbles: true }));
         targetInput.dispatchEvent(new Event('change', { bubbles: true }));
         targetInput.focus();
       }
-      textarea.value = ''; // Clear after inject
+      hideModal();
       console.log(`Text injected successfully into ${config.siteName}`);
-    } else {
-      console.log(`Target input not found: ${config.targetSelector}`);
     }
   }
 
-  // Initialize immediately and on DOM changes
+  // Start watching input
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSidebar);
+    document.addEventListener('DOMContentLoaded', watchInput);
   } else {
-    initSidebar();
+    watchInput();
   }
   
-  // Also try after short delay for SPA
-  setTimeout(initSidebar, 1000);
-  
-  // Watch for DOM changes (for SPAs)
-  const observer = new MutationObserver(function() {
-    if (!document.getElementById('text-injector-sidebar')) {
-      initSidebar();
-    }
+  // Watch for dynamic input changes (SPAs)
+  const observer = new MutationObserver(() => {
+    watchInput();
   });
   observer.observe(document.body, { childList: true, subtree: true });
 })(window.INJECTOR_CONFIG || {});

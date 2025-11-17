@@ -11,7 +11,8 @@ Universal Chrome Extension for AI Chat Platforms - Inject custom text with a bea
 ## ✨ Features
 
 - **4 AI Platforms Supported** - One extension, multiple sites
-- **Beautiful Right Sidebar** - Glassmorphism design, full height
+- **`/promptchan` Modal Trigger** - Type slash command to open
+- **Beautiful Centered Modal** - Glassmorphism design with animations
 - **Universal Injection** - Works with textareas AND contenteditable divs
 - **Keyboard Shortcut** - `Shift + Enter` to inject
 - **Auto-clear** - Input clears after injection
@@ -51,10 +52,11 @@ Universal Chrome Extension for AI Chat Platforms - Inject custom text with a bea
 
 ## 🎮 Usage
 
-1. Visit supported site → **Right sidebar appears automatically**
-2. Type your text in the textarea
-3. Click **"Inject Text"** or press `Shift + Enter`
-4. Text appears in chat input instantly! ✨
+1. **Type `/promptchan`** in any chat input field
+2. **Promptchan Modal** appears automatically (centered)
+3. Type your text in the modal textarea
+4. Click **"Inject Text"** or press `Shift + Enter`
+5. Text appears in chat input + modal closes! ✨
 
 ## 🛠 Adding New Sites
 
