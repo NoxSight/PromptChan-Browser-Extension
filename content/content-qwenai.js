@@ -4,7 +4,8 @@
   window.INJECTOR_CONFIG = {
     siteName: 'Qwen.AI',
     hostname: 'chat.qwen.ai',
-    targetSelector: '#chat-input'
+    targetSelector: '#chat-input',
+    isContentEditable: false
   };
   
   console.log('Qwen.AI config loaded:', window.INJECTOR_CONFIG);

@@ -4,7 +4,8 @@
   window.INJECTOR_CONFIG = {
     siteName: 'Z.AI',
     hostname: 'chat.z.ai',
-    targetSelector: '#chat-input'
+    targetSelector: '#chat-input',
+    isContentEditable: false
   };
   
   console.log('Z.AI config loaded:', window.INJECTOR_CONFIG);
