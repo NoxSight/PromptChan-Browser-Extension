@@ -1,9 +1,19 @@
 {
+  "icons": {
+    "16": "assets/logo.png",
+    "32": "assets/logo.png",
+    "48": "assets/logo.png",
+    "128": "assets/logo.png"
+  },
   "manifest_version": 3,
   "options_page": "options.html",
-  "name": "Promptchan browser extension",
+  "action": {
+    "default_title": "Promptchan Sidebar",
+    "default_popup": "injector.html"
+  },
+  "name": "Promptchan — Your Prompt Companion",
   "version": "1.5",
-  "description": "Right sidebar text injector for chat.z.ai, chat.qwen.ai, chatgpt.com, and gemini.google.com",
+  "description": "AI prompt sidebar for chat.z.ai, chat.qwen.ai, ChatGPT, and Gemini",
   "content_scripts": [
     {
       "matches": [
@@ -57,7 +67,9 @@
   "permissions": [
     "activeTab",
     "contextMenus",
-    "storage"
+    "storage",
+    "scripting",
+    "notifications"
   ],
   "host_permissions": [
     "http://localhost:3000/*"
@@ -68,7 +80,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "injector.js"
+        "injector.js",
+        "assets/logo.png"
       ],
       "matches": [
         "https://chat.z.ai/*",
