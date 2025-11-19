@@ -25,7 +25,7 @@
       }
 
       if (inputValue.includes('/promptchan')) {
-        showModal();
+        showSidebar();
         // Clear trigger from input
         clearTrigger(targetInput);
       }
@@ -54,24 +54,24 @@
     targetInput.focus();
   }
 
-  function showModal() {
+  function showSidebar() {
     if (modal) return; // Prevent duplicates
-
+  
     modal = document.createElement('div');
-    modal.id = 'promptchan-modal';
+    modal.id = 'promptchan-sidebar';
+    modal.className = 'active';
     modal.innerHTML = `
-      <div class="modal-overlay" id="modal-overlay">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>${config.siteName} Injector</h3>
-            <button class="modal-close" id="modal-close">&times;</button>
-          </div>
-          <div class="modal-body">
-            <textarea id="inject-textarea" placeholder="Enter text to inject..." rows="8"></textarea>
-            <div class="modal-actions">
-              <button id="inject-button">Inject Text</button>
-              <button id="cancel-button">Cancel</button>
-            </div>
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+      <div class="sidebar-content">
+        <div class="sidebar-header">
+          <h3>${config.siteName} Injector</h3>
+          <button class="sidebar-close" id="sidebar-close">&times;</button>
+        </div>
+        <div class="sidebar-body">
+          <textarea id="inject-textarea" placeholder="Enter text to inject..." rows="12"></textarea>
+          <div class="sidebar-actions">
+            <button id="inject-button">Inject Text</button>
+            <button id="cancel-button">Cancel</button>
           </div>
         </div>
       </div>
@@ -80,22 +80,23 @@
     document.body.appendChild(modal);
     
     // Event listeners
-    document.getElementById('modal-close').onclick = hideModal;
-    document.getElementById('cancel-button').onclick = hideModal;
+    document.getElementById('sidebar-close').onclick = hideSidebar;
+    document.getElementById('cancel-button').onclick = hideSidebar;
     document.getElementById('inject-button').onclick = () => injectText();
     document.getElementById('inject-textarea').onkeydown = (e) => {
       if (e.key === 'Enter' && e.shiftKey) {
         injectText();
       }
     };
-
+    
     // Close on overlay click
-    document.getElementById('modal-overlay').onclick = (e) => {
-      if (e.target.id === 'modal-overlay') hideModal();
-    };
+    document.getElementById('sidebar-overlay').onclick = hideSidebar;
   }
+  
+  // Expose globally for context menu
+  window.showPromptchanSidebar = showSidebar;
 
-  function hideModal() {
+  function hideSidebar() {
     if (modal) {
       modal.remove();
       modal = null;
@@ -123,7 +124,7 @@
         targetInput.dispatchEvent(new Event('change', { bubbles: true }));
         targetInput.focus();
       }
-      hideModal();
+      hideSidebar();
       console.log(`Text injected successfully into ${config.siteName}`);
     }
   }
@@ -134,6 +135,13 @@
   } else {
     watchInput();
   }
+
+  // Listen for context menu trigger
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SHOW_SIDEBAR') {
+      showSidebar();
+    }
+  });
   
   // Watch for dynamic input changes (SPAs)
   const observer = new MutationObserver(() => {

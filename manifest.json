@@ -26,12 +26,20 @@
     }
   ],
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "contextMenus"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "web_accessible_resources": [
     {
       "resources": ["injector.js"],
       "matches": ["https://chat.z.ai/*", "https://chat.qwen.ai/*", "https://chatgpt.com/*", "https://gemini.google.com/*"]
     }
   ]
+},
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'"
+  }
 }
