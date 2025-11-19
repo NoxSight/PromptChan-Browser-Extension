@@ -1,44 +1,83 @@
 {
   "manifest_version": 3,
+  "options_page": "options.html",
   "name": "Promptchan browser extension",
   "version": "1.5",
   "description": "Right sidebar text injector for chat.z.ai, chat.qwen.ai, chatgpt.com, and gemini.google.com",
   "content_scripts": [
     {
-      "matches": ["https://chat.z.ai/*"],
-      "js": ["content/content-zai.js", "injector.js"],
-      "css": ["styles.css"]
+      "matches": [
+        "https://chat.z.ai/*"
+      ],
+      "js": [
+        "content/content-zai.js",
+        "injector.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
     },
     {
-      "matches": ["https://chat.qwen.ai/*"],
-      "js": ["content/content-qwenai.js", "injector.js"],
-      "css": ["styles.css"]
+      "matches": [
+        "https://chat.qwen.ai/*"
+      ],
+      "js": [
+        "content/content-qwenai.js",
+        "injector.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
     },
     {
-      "matches": ["https://chatgpt.com/*"],
-      "js": ["content/content-chatgpt.js", "injector.js"],
-      "css": ["styles.css"]
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "content/content-chatgpt.js",
+        "injector.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
     },
     {
-      "matches": ["https://gemini.google.com/*"],
-      "js": ["content/content-gemini.js", "injector.js"],
-      "css": ["styles.css"]
+      "matches": [
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "content/content-gemini.js",
+        "injector.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
     }
   ],
   "permissions": [
     "activeTab",
-    "contextMenus"
+    "contextMenus",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "web_accessible_resources": [
     {
-      "resources": ["injector.js"],
-      "matches": ["https://chat.z.ai/*", "https://chat.qwen.ai/*", "https://chatgpt.com/*", "https://gemini.google.com/*"]
+      "resources": [
+        "injector.js"
+      ],
+      "matches": [
+        "https://chat.z.ai/*",
+        "https://chat.qwen.ai/*",
+        "https://chatgpt.com/*",
+        "https://gemini.google.com/*"
+      ]
     }
-  ]
-},
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'"
   }

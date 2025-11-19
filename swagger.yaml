@@ -1,0 +1,450 @@
+openapi: 3.0.3
+info:
+  title: Prompt Catalog API
+  description: RESTful API for managing AI prompt templates with user authentication
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "john_doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+    
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - username
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          example: "john_doe"
+        password:
+          type: string
+          minLength: 8
+          example: "securepassword123"
+    
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        password:
+          type: string
+          example: "securepassword123"
+    
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    
+    PromptTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "Code Review Assistant"
+        short_description:
+          type: string
+          example: "AI-powered code review with specific feedback"
+        long_description:
+          type: string
+          example: "This prompt helps developers get comprehensive code reviews..."
+        template:
+          type: string
+          example: "You are an expert code reviewer. Review this code: {{code}}"
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/InputField'
+        tags:
+          type: string
+          example: "code,review,development"
+        visibility:
+          type: string
+          enum: [public, private]
+          example: "public"
+        creator_id:
+          type: integer
+          example: 1
+        creator:
+          $ref: '#/components/schemas/User'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    InputField:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "product_name"
+        type:
+          type: string
+          example: "text"
+        label:
+          type: string
+          example: "Product Name"
+        description:
+          type: string
+          example: "The name of the product."
+        placeholder:
+          type: string
+          example: "e.g., Quantum Keyboard"
+        required:
+          type: boolean
+          default: true
+        validation:
+          type: object
+          additionalProperties: true
+          example:
+            min_length: 5
+            max_length: 50
+
+    PromptCreateRequest:
+      type: object
+      required:
+        - title
+        - short_description
+        - template
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Code Review Assistant"
+        short_description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          example: "AI-powered code review with specific feedback"
+        long_description:
+          type: string
+          maxLength: 5000
+        template:
+          type: string
+          minLength: 10
+          example: "You are an expert code reviewer..."
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/InputField'
+        tags:
+          type: string
+          example: "code,review,development"
+        visibility:
+          type: string
+          enum: [public, private]
+          default: "public"
+    
+    PromptListResponse:
+      type: object
+      properties:
+        prompts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromptTemplate'
+        total:
+          type: integer
+          example: 42
+        skip:
+          type: integer
+          example: 0
+        limit:
+          type: integer
+          example: 20
+    
+    PaginationQuery:
+      type: object
+      properties:
+        skip:
+          type: integer
+          default: 0
+          example: 0
+        limit:
+          type: integer
+          default: 20
+          maximum: 100
+          example: 20
+        q:
+          type: string
+          description: Search query
+          example: "code review"
+        creator_id:
+          type: integer
+          example: 1
+        tags:
+          type: string
+          example: "code"
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [Health]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "OK"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /auth/register:
+    post:
+      summary: Register new user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error
+        '409':
+          description: User already exists
+
+  /auth/login:
+    post:
+      summary: Login user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+        '400':
+          description: Validation error
+
+  /prompts:
+    get:
+      summary: List prompts with filtering and search
+      tags: [Prompts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/schemas/PaginationQuery'
+      responses:
+        '200':
+          description: List of prompts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptListResponse'
+    
+    post:
+      summary: Create new prompt
+      tags: [Prompts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromptCreateRequest'
+      responses:
+        '201':
+          description: Prompt created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptTemplate'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+
+  /prompts/{id}:
+    get:
+      summary: Get single prompt
+      tags: [Prompts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Prompt details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptTemplate'
+        '404':
+          description: Prompt not found
+        '403':
+          description: Access denied
+
+    put:
+      summary: Update prompt (owner only)
+      tags: [Prompts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromptCreateRequest'
+      responses:
+        '200':
+          description: Prompt updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptTemplate'
+        '403':
+          description: Not authorized
+        '404':
+          description: Prompt not found
+
+    delete:
+      summary: Delete prompt (owner only)
+      tags: [Prompts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Prompt deleted
+        '403':
+          description: Not authorized
+        '404':
+          description: Prompt not found
+
+  /prompts/{id}/favorite:
+    post:
+      summary: Add prompt to favorites
+      tags: [Prompts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Added to favorites
+        '404':
+          description: Prompt not found
+        '403':
+          description: Access denied
+        '409':
+          description: Already in favorites
+    
+    delete:
+      summary: Remove prompt from favorites
+      tags: [Prompts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Removed from favorites
+        '404':
+          description: Not in favorites
+
+  /prompts/favorites:
+    get:
+      summary: Get user's favorited prompts
+      tags: [Prompts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/schemas/PaginationQuery'
+      responses:
+        '200':
+          description: Favorited prompts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptListResponse'

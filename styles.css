@@ -85,6 +85,87 @@
   transition: all 0.2s ease !important;
 }
 
+.sidebar-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.back-button {
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  width: 100%;
+  justify-content: center;
+}
+
+.back-button:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.prompt-detail-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+  line-height: 1.3;
+}
+
+.prompt-detail-description {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.prompt-template-section {
+  margin-bottom: 24px;
+}
+
+.template-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.prompt-template {
+  background: #f8f9fa;
+  border: 1px solid #e1e5e9;
+  border-radius: 12px;
+  padding: 20px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.prompt-template-text {
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #333;
+}
+
+.prompt-template-text.baked {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
 .modal-close:hover {
   background: rgba(255, 255, 255, 0.2);
 }
@@ -95,6 +176,106 @@
   overflow: auto;
   display: flex;
   flex-direction: column;
+}
+
+.prompts-section, .prompt-details {
+  margin-bottom: 16px;
+}
+
+.prompts-section.hidden, .prompt-details.hidden {
+  display: none;
+}
+
+.prompt-input-group {
+  margin-bottom: 20px;
+}
+
+.prompt-input-group label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.prompt-input-group input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.prompt-input-group input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.prompt-input-group small {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+.prompts-container {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  border: 1px solid #e1e5e9;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fafbfc;
+}
+
+.prompt-card {
+  padding: 16px;
+  margin-bottom: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.prompt-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #667eea;
+  transform: translateY(-2px);
+}
+
+.prompt-card:active {
+  transform: translateY(0);
+}
+
+.prompt-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: #333;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.prompt-description {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.sidebar-username {
+  position: absolute;
+  top: 24px;
+  right: 70px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
 }
 
 #inject-textarea {
@@ -128,7 +309,8 @@
   flex-shrink: 0;
 }
 
-#inject-button {
+#inject-button,
+#bake-button.primary-button {
   flex: 1;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -142,6 +324,17 @@
   box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
 }
 
+#inject-button:hover,
+#bake-button.primary-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+#inject-button:active,
+#bake-button.primary-button:active {
+  transform: translateY(0);
+}
+
 #inject-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
@@ -151,6 +344,7 @@
   transform: translateY(0);
 }
 
+#bake-button:not(.primary-button),
 #cancel-button {
   flex: 1;
   background: #f8f9fa;
@@ -162,6 +356,12 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+#bake-button:not(.primary-button):hover,
+#cancel-button:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
 }
 
 #cancel-button:hover {
