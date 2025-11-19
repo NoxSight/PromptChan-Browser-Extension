@@ -1,12 +1,13 @@
 // Shared injector logic for all chat sites - Modal trigger version
 (async function(config) {
-  // Load all settings from storage
-  const settings = await chrome.storage.sync.get(['customUrl', 'email', 'password', 'username', 'authToken']);
+  // Load all settings from storage - default API base URL
+  const settings = await chrome.storage.sync.get(['customUrl', 'email', 'password', 'username', 'authToken', 'apiBaseUrl']);
+  const apiBaseUrl = settings.apiBaseUrl || 'http://localhost:3000';
   const customUrl = settings.customUrl;
-  const email = settings.email;
-  const password = settings.password;
-  const username = settings.username;
-  const authToken = settings.authToken;
+  let email = settings.email;
+  let password = settings.password;
+  let username = settings.username;
+  let authToken = settings.authToken;
   
   console.log('Custom URL from settings:', customUrl);
   console.log(`Injector loaded for: ${config.siteName} on ${window.location.hostname}`);
@@ -84,17 +85,27 @@
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
         <div class="sidebar-content">
           <div class="sidebar-header">
-            <h3>⚠️ Not Logged In</h3>
+            <h3>🔐 Login Required</h3>
             <button class="sidebar-close" id="sidebar-close">&times;</button>
           </div>
           <div class="sidebar-body">
-            <div style="padding: 30px 20px; text-align: center; color: #666;">
-              <p style="font-size: 16px; margin-bottom: 20px;">Please log in to access prompts</p>
-              <p>Set your <strong>email</strong> and <strong>password</strong> in:</p>
-              <button id="open-settings" class="primary-button" style="margin-top: 20px; padding: 12px 24px; font-size: 14px;">
-                Extension Settings
-              </button>
-              <p style="margin-top: 20px; font-size: 12px;">Then click the Promptchan icon again</p>
+            <div style="padding: 20px;">
+              <p style="margin-bottom: 20px; color: #666;">Enter your credentials to access prompts:</p>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Email:</label>
+                <input id="login-email" type="email" placeholder="your@email.com" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Password:</label>
+                <input id="login-password" type="password" placeholder="••••••••" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button id="login-submit" class="primary-button" style="flex: 1; padding: 12px;">Login & Save</button>
+                <button id="open-settings" class="secondary-button" style="flex: 1; padding: 12px; background: #f0f0f0; border: none;">Open Settings</button>
+              </div>
+              <p style="margin-top: 15px; font-size: 12px; color: #666; text-align: center;">
+                Credentials will be saved securely to extension settings
+              </p>
             </div>
           </div>
         </div>
@@ -105,9 +116,51 @@
       // Event listeners for login modal
       document.getElementById('sidebar-close').onclick = hideSidebar;
       document.getElementById('sidebar-overlay').onclick = hideSidebar;
+      
       document.getElementById('open-settings').onclick = () => {
         chrome.runtime.openOptionsPage();
         hideSidebar();
+      };
+  
+      document.getElementById('login-submit').onclick = async () => {
+        const loginEmail = document.getElementById('login-email').value.trim();
+        const loginPassword = document.getElementById('login-password').value;
+        
+        if (!loginEmail || !loginPassword) {
+          alert('Please enter both email and password');
+          return;
+        }
+  
+        try {
+          // Save credentials to extension storage
+          await chrome.storage.sync.set({
+            email: loginEmail,
+            password: loginPassword
+          });
+  
+          // Update local variables
+          email = loginEmail;
+          password = loginPassword;
+  
+          // Try auto-login with new credentials
+          if (!window.isLoggingIn) {
+            window.isLoggingIn = true;
+            await autoLogin();
+            window.isLoggingIn = false;
+          }
+  
+          // Reload all settings including username
+          const updatedSettings = await chrome.storage.sync.get(['authToken', 'username']);
+          authToken = updatedSettings.authToken;
+          username = updatedSettings.username;
+  
+          // Close login modal and show main sidebar
+          hideSidebar();
+          showSidebar();
+        } catch (error) {
+          console.error('Login save failed:', error);
+          alert('Failed to save credentials. Please try again.');
+        }
       };
     }
   
@@ -118,8 +171,11 @@
       <div class="sidebar-overlay" id="sidebar-overlay"></div>
       <div class="sidebar-content">
         <div class="sidebar-header">
-          <h3 id="sidebar-title">${config.siteName} Injector</h3>
-          ${username ? `<span class="sidebar-username">@${username}</span>` : ''}
+          <div class="sidebar-title-container">
+            <div class="sidebar-logo"></div>
+            <h3 id="sidebar-title">PromptChan</h3>
+          </div>
+          ${username ? `<span class="sidebar-username clickable-username" data-username="${username}">@${username}</span><div class="username-dropdown hidden"><button id="logout-button">Logout</button></div>` : ''}
           <button class="sidebar-close" id="sidebar-close">&times;</button>
         </div>
         <div class="sidebar-body">
@@ -146,6 +202,35 @@
     
     document.body.appendChild(modal);
     
+    // Username dropdown functionality
+    const usernameEl = modal.querySelector('.clickable-username');
+    const dropdown = modal.querySelector('.username-dropdown');
+    if (usernameEl && dropdown) {
+      usernameEl.onclick = (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+      };
+      
+      document.onclick = () => {
+        dropdown.classList.add('hidden');
+      };
+      
+      document.getElementById('logout-button').onclick = async () => {
+        try {
+          await chrome.storage.sync.clear();
+          // Reset local variables
+          email = null;
+          password = null;
+          username = null;
+          authToken = null;
+          hideSidebar();
+          showSidebar(); // Show login modal
+        } catch (error) {
+          console.error('Logout failed:', error);
+        }
+      };
+    }
+    
     // Event listeners
     document.getElementById('sidebar-close').onclick = hideSidebar;
     document.getElementById('cancel-button').onclick = hideSidebar;
@@ -155,10 +240,12 @@
       const promptDetails = document.getElementById('prompt-details');
       const sidebarTitle = document.getElementById('sidebar-title');
       
-      if (promptsSection && promptDetails && sidebarTitle) {
+      if (promptsSection && promptDetails) {
         promptsSection.classList.remove('hidden');
         promptDetails.classList.add('hidden');
-        sidebarTitle.textContent = `${config.siteName} Injector`;
+      }
+      if (sidebarTitle) {
+        sidebarTitle.textContent = 'PromptChan';
       }
     };
 
@@ -168,6 +255,11 @@
       await autoLogin();
       window.isLoggingIn = false;
       loginCompleted = true;
+      
+      // Reload all settings to get new authToken and username
+      const updatedSettings = await chrome.storage.sync.get(['authToken', 'username']);
+      authToken = updatedSettings.authToken;
+      username = updatedSettings.username;
     }
     
     // Close on overlay click
@@ -265,7 +357,7 @@
   async function autoLogin() {
     try {
       console.log('Attempting auto-login...');
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -309,30 +401,43 @@
   });
   // Load prompts function
   async function loadPrompts() {
-    const promptsList = document.getElementById('prompts-list');
-    if (!promptsList || !authToken) {
-      // Show auth error in sidebar
-      promptsList.innerHTML = `
-        <div style="padding: 20px; text-align: center; color: #666;">
-          <h4>Authentication Required</h4>
-          <p>Please set your email and password in extension settings to access prompts.</p>
-          <button id="open-settings" class="primary-button" style="margin-top: 15px;">Open Settings</button>
-        </div>
-      `;
-      document.getElementById('open-settings').onclick = () => {
-        chrome.runtime.openOptionsPage();
-        hideSidebar();
-      };
-      return;
-    }
-
     try {
-      console.log('Loading prompts...');
-      const response = await fetch('http://localhost:3000/api/prompts', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
+      const promptsList = document.getElementById('prompts-list');
+      if (!promptsList) return;
+      
+      // Always reload latest authToken before checking
+      const currentSettings = await chrome.storage.sync.get(['authToken']);
+      const currentAuthToken = currentSettings.authToken;
+      
+      if (!currentAuthToken) {
+        promptsList.innerHTML = `
+          <div style="padding: 20px; text-align: center; color: #666;">
+            <h4>Authentication Required</h4>
+            <p>Please set your email and password in extension settings to access prompts.</p>
+            <button id="open-settings" class="primary-button" style="margin-top: 15px;">Open Settings</button>
+          </div>
+        `;
+        const openSettingsBtn = document.getElementById('open-settings');
+        if (openSettingsBtn) {
+          openSettingsBtn.onclick = () => {
+            if (chrome.runtime && chrome.runtime.openOptionsPage) {
+              chrome.runtime.openOptionsPage();
+            }
+            hideSidebar();
+          };
         }
-      });
+        return;
+      }
+    
+    // Update local authToken
+    authToken = currentAuthToken;
+
+    console.log('Loading prompts...');
+    const response = await fetch(`${apiBaseUrl}/api/prompts`, {
+      headers: {
+        'Authorization': `Bearer ${currentAuthToken}`
+      }
+    });
 
       if (response.ok) {
         const data = await response.json();
