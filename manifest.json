@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Text Injector Sidebar",
+  "name": "Promptchan browser extension",
   "version": "1.5",
   "description": "Right sidebar text injector for chat.z.ai, chat.qwen.ai, chatgpt.com, and gemini.google.com",
   "content_scripts": [
