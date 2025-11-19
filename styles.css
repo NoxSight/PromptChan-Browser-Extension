@@ -72,7 +72,7 @@
 .sidebar-logo {
   width: 28px;
   height: 28px;
-  background-image: url('../assets/logo.png');
+  background-image: url(chrome-extension://__MSG_@@extension_id__/assets/logo.png);
   background-size: cover;
   background-position: center;
   border-radius: 6px;
