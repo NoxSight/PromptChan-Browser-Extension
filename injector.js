@@ -65,9 +65,51 @@
 
   async function showSidebar() {
     if (modal) return; // Prevent duplicates
+  
+    // Check login status first
+    if (!email || !password) {
+      showLoginModal();
+      return;
+    }
     
     let selectedPrompt = null;
     let bakedPromptText = '';
+  
+    // Show login modal if no credentials
+    function showLoginModal() {
+      modal = document.createElement('div');
+      modal.id = 'promptchan-sidebar';
+      modal.className = 'active';
+      modal.innerHTML = `
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+        <div class="sidebar-content">
+          <div class="sidebar-header">
+            <h3>⚠️ Not Logged In</h3>
+            <button class="sidebar-close" id="sidebar-close">&times;</button>
+          </div>
+          <div class="sidebar-body">
+            <div style="padding: 30px 20px; text-align: center; color: #666;">
+              <p style="font-size: 16px; margin-bottom: 20px;">Please log in to access prompts</p>
+              <p>Set your <strong>email</strong> and <strong>password</strong> in:</p>
+              <button id="open-settings" class="primary-button" style="margin-top: 20px; padding: 12px 24px; font-size: 14px;">
+                Extension Settings
+              </button>
+              <p style="margin-top: 20px; font-size: 12px;">Then click the Promptchan icon again</p>
+            </div>
+          </div>
+        </div>
+      `;
+  
+      document.body.appendChild(modal);
+  
+      // Event listeners for login modal
+      document.getElementById('sidebar-close').onclick = hideSidebar;
+      document.getElementById('sidebar-overlay').onclick = hideSidebar;
+      document.getElementById('open-settings').onclick = () => {
+        chrome.runtime.openOptionsPage();
+        hideSidebar();
+      };
+    }
   
     modal = document.createElement('div');
     modal.id = 'promptchan-sidebar';
@@ -125,6 +167,7 @@
       window.isLoggingIn = true;
       await autoLogin();
       window.isLoggingIn = false;
+      loginCompleted = true;
     }
     
     // Close on overlay click
@@ -255,8 +298,9 @@
   }
 
   // Listen for manual token changes (avoid auto-refresh loops)
+  let loginCompleted = false;
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync' && changes.authToken && !window.isLoggingIn) {
+    if (area === 'sync' && changes.authToken && !window.isLoggingIn && loginCompleted) {
       if (modal) {
         hideSidebar();
         showSidebar();
@@ -267,6 +311,18 @@
   async function loadPrompts() {
     const promptsList = document.getElementById('prompts-list');
     if (!promptsList || !authToken) {
+      // Show auth error in sidebar
+      promptsList.innerHTML = `
+        <div style="padding: 20px; text-align: center; color: #666;">
+          <h4>Authentication Required</h4>
+          <p>Please set your email and password in extension settings to access prompts.</p>
+          <button id="open-settings" class="primary-button" style="margin-top: 15px;">Open Settings</button>
+        </div>
+      `;
+      document.getElementById('open-settings').onclick = () => {
+        chrome.runtime.openOptionsPage();
+        hideSidebar();
+      };
       return;
     }
 
