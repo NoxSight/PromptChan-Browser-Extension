@@ -1,5 +1,5 @@
 // Shared injector logic for all chat sites - Modal trigger version
-(async function(config) {
+(async function (config) {
   // Load all settings from storage - default API base URL
   const settings = await chrome.storage.sync.get(['customUrl', 'email', 'password', 'username', 'authToken', 'apiBaseUrl']);
   const apiBaseUrl = settings.apiBaseUrl || 'http://localhost:3000';
@@ -8,10 +8,10 @@
   let password = settings.password;
   let username = settings.username;
   let authToken = settings.authToken;
-  
+
   console.log('Custom URL from settings:', customUrl);
   console.log(`Injector loaded for: ${config.siteName} on ${window.location.hostname}`);
-  
+
   // Site-specific hostname check
   if (window.location.hostname.indexOf(config.hostname) === -1) {
     console.log(`Not on ${config.siteName}, skipping`);
@@ -66,20 +66,20 @@
 
   async function showSidebar() {
     if (modal) return; // Prevent duplicates
-  
+
     // Always refresh settings from storage to get latest credentials and authToken
     const currentSettings = await chrome.storage.sync.get(['email', 'password', 'username', 'authToken']);
     email = currentSettings.email;
     password = currentSettings.password;
     authToken = currentSettings.authToken;
     username = currentSettings.username;
-  
+
     // Check authentication status - require valid authToken to show main sidebar
     if (!authToken || !email || !password) {
       showLoginModal();
       return;
     }
-    
+
     // Show main sidebar directly if we have token
     showMainSidebar();
   }
@@ -124,7 +124,7 @@
     // Event listeners for login modal
     document.getElementById('sidebar-close').onclick = hideSidebar;
     document.getElementById('sidebar-overlay').onclick = hideSidebar;
-    
+
     document.getElementById('open-settings').onclick = () => {
       chrome.runtime.openOptionsPage();
       hideSidebar();
@@ -133,7 +133,7 @@
     document.getElementById('login-submit').onclick = async () => {
       const loginEmail = document.getElementById('login-email').value.trim();
       const loginPassword = document.getElementById('login-password').value;
-      
+
       if (!loginEmail || !loginPassword) {
         alert('Please enter both email and password');
         return;
@@ -192,11 +192,27 @@
             <div class="sidebar-logo"></div>
             <h3 id="sidebar-title">PromptChan</h3>
           </div>
-          ${username ? `<span class="sidebar-username" data-username="${username}">@${username}</span>` : ''}
+          <div class="sidebar-user-section">
+            ${username ? `<span class="sidebar-username" data-username="${username}">@${username}</span>` : ''}
+            ${username ? `<button class="logout-button" id="logout-button" title="Logout">⏻</button>` : ''}
+          </div>
           <button class="sidebar-close" id="sidebar-close">&times;</button>
         </div>
         <div class="sidebar-body">
           <div id="prompts-section" class="prompts-section">
+            <div class="search-section">
+              <div class="search-input-container">
+                <input type="text" id="search-input" placeholder="Search prompts..." class="search-input">
+                <button id="search-button" class="search-button">🔍</button>
+                <button id="clear-search" class="clear-search-button" style="display: none;">✕</button>
+              </div>
+              <div class="filter-section">
+                <button id="favorites-filter" class="filter-button">
+                  <span class="filter-icon">❤️</span>
+                  <span class="filter-text">My Favorites</span>
+                </button>
+              </div>
+            </div>
             <div id="prompts-list" class="prompts-container"></div>
           </div>
           <div id="prompt-details" class="prompt-details hidden">
@@ -216,10 +232,10 @@
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
-    
+
+
     // Event listeners
     document.getElementById('sidebar-close').onclick = hideSidebar;
     document.getElementById('cancel-button').onclick = hideSidebar;
@@ -228,7 +244,7 @@
       const promptsSection = document.getElementById('prompts-section');
       const promptDetails = document.getElementById('prompt-details');
       const sidebarTitle = document.getElementById('sidebar-title');
-      
+
       if (promptsSection && promptDetails) {
         promptsSection.classList.remove('hidden');
         promptDetails.classList.add('hidden');
@@ -237,29 +253,102 @@
         sidebarTitle.textContent = 'PromptChan';
       }
     };
-    
+
+    // Logout button event listener
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+      logoutButton.onclick = async () => {
+        if (confirm('Are you sure you want to logout? This will clear your saved credentials.')) {
+          await logout();
+        }
+      };
+    }
+
     // Close on overlay click
     document.getElementById('sidebar-overlay').onclick = hideSidebar;
-    
+
+    // Search functionality event listeners
+    const searchInput = document.getElementById('search-input');
+    const searchButton = document.getElementById('search-button');
+    const clearSearchButton = document.getElementById('clear-search');
+    const favoritesFilter = document.getElementById('favorites-filter');
+
+    // Track filter state
+    let isShowingFavorites = false;
+
+    if (searchInput && searchButton && clearSearchButton) {
+      // Search on button click
+      searchButton.onclick = () => performSearch();
+      
+      // Search on Enter key
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          performSearch();
+        }
+      });
+
+      // Clear search
+      clearSearchButton.onclick = () => {
+        searchInput.value = '';
+        clearSearchButton.style.display = 'none';
+        loadPrompts(0, '', isShowingFavorites); // Reload prompts with current filter state
+      };
+
+      // Show/hide clear button based on input
+      searchInput.addEventListener('input', () => {
+        if (searchInput.value.trim()) {
+          clearSearchButton.style.display = 'inline-flex';
+        } else {
+          clearSearchButton.style.display = 'none';
+        }
+      });
+    }
+
+    // Favorites filter event listener
+    if (favoritesFilter) {
+      favoritesFilter.onclick = () => {
+        isShowingFavorites = !isShowingFavorites;
+        
+        // Update button appearance
+        if (isShowingFavorites) {
+          favoritesFilter.classList.add('active');
+          favoritesFilter.querySelector('.filter-text').textContent = 'Show All';
+        } else {
+          favoritesFilter.classList.remove('active');
+          favoritesFilter.querySelector('.filter-text').textContent = 'My Favorites';
+        }
+        
+        // Reload prompts with favorites filter
+        const query = searchInput ? searchInput.value.trim() : '';
+        loadPrompts(0, query, isShowingFavorites);
+      };
+    }
+
+    // Search function
+    function performSearch() {
+      const query = searchInput.value.trim();
+      loadPrompts(0, query, isShowingFavorites); // Pass both search query and favorites filter
+    }
+
     // Load prompts after authentication
     await loadPrompts();
-    
+
     // Nested function to handle prompt selection
     function selectPrompt(prompt) {
       selectedPrompt = prompt;
       document.getElementById('prompts-section').classList.add('hidden');
       document.getElementById('prompt-details').classList.remove('hidden');
-      
+
       const titleEl = document.getElementById('prompt-title');
       const descEl = document.getElementById('prompt-description');
       const templateContainer = document.getElementById('prompt-template');
       const inputsContainer = document.getElementById('prompt-inputs');
-      
+
       if (titleEl) titleEl.textContent = prompt.title;
       if (descEl) descEl.textContent = prompt.long_description || '';
       inputsContainer.innerHTML = '';
       templateContainer.innerHTML = `<pre class="prompt-template-text">${prompt.template}</pre>`;
-      
+
       try {
         const inputs = JSON.parse(prompt.inputs);
         inputs.forEach(input => {
@@ -284,9 +373,9 @@
     // Nested function to handle prompt baking
     function bakePrompt(selectedPrompt, bakedPromptText) {
       if (!selectedPrompt) return;
-      
+
       let finalText = selectedPrompt.template;
-      
+
       try {
         const inputs = JSON.parse(selectedPrompt.inputs);
         inputs.forEach(input => {
@@ -302,7 +391,7 @@
           document.getElementById('bake-button').textContent = 'Bake Prompt';
           document.getElementById('bake-button').disabled = false;
         }, 2000);
-        
+
         // Auto-inject after baking
         const targetInput = document.querySelector(config.targetSelector);
         if (targetInput && finalText.trim()) {
@@ -333,10 +422,10 @@
     // Expose selectPrompt function to loadPrompts
     window.currentSelectPrompt = selectPrompt;
   }
-  
+
   // Expose globally for context menu
   window.showPromptchanSidebar = showSidebar;
-  
+
   // Check if on custom URL site
   if (customUrl && window.location.hostname.includes(new URL(customUrl).hostname)) {
     console.log(`Detected custom URL site: ${customUrl}`);
@@ -365,7 +454,7 @@
       showSidebar();
     }
   });
-  
+
   // Watch for dynamic input changes (SPAs)
   const observer = new MutationObserver(() => {
     watchInput();
@@ -390,13 +479,13 @@
         const data = await response.json();
         const newToken = data.token;
         const newUsername = data.user.username;
-        
+
         // Save token and username
         await chrome.storage.sync.set({
           authToken: newToken,
           username: newUsername
         });
-        
+
         console.log('Auto-login successful:', newUsername);
         // Don't refresh sidebar during login to prevent loops
       } else {
@@ -418,15 +507,15 @@
   //   }
   // });
   // Load prompts function with automatic reauthentication on 403
-  async function loadPrompts(retryCount = 0) {
+  async function loadPrompts(retryCount = 0, searchQuery = '', favoritesOnly = false) {
     try {
       const promptsList = document.getElementById('prompts-list');
       if (!promptsList) return;
-      
+
       // Always reload latest authToken before checking
       const currentSettings = await chrome.storage.sync.get(['authToken', 'email', 'password']);
       const currentAuthToken = currentSettings.authToken;
-      
+
       if (!currentAuthToken) {
         promptsList.innerHTML = `
           <div style="padding: 20px; text-align: center; color: #666;">
@@ -446,12 +535,30 @@
         }
         return;
       }
-    
+
       // Update local authToken
       authToken = currentAuthToken;
 
-      console.log('Loading prompts...');
-      const response = await fetch(`${apiBaseUrl}/api/prompts`, {
+      // Build API URL with search query and favorites filter if provided
+      let apiUrl = `${apiBaseUrl}/api/prompts`;
+      const params = new URLSearchParams();
+      
+      if (searchQuery) {
+        params.append('q', searchQuery);
+      }
+      
+      if (favoritesOnly) {
+        params.append('favorites_only', 'true');
+      }
+      
+      if (params.toString()) {
+        apiUrl += `?${params.toString()}`;
+      }
+
+      console.log('Loading prompts...',
+        searchQuery ? `with search: "${searchQuery}"` : '',
+        favoritesOnly ? '(favorites only)' : '');
+      const response = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${currentAuthToken}`
         }
@@ -460,21 +567,21 @@
       if (response.status === 403 && retryCount === 0) {
         // Token is invalid, try to reauthenticate
         console.log('Token invalid (403), attempting reauthentication...');
-        
+
         // Check if we have saved credentials
         if (currentSettings.email && currentSettings.password) {
           // Update local variables
           email = currentSettings.email;
           password = currentSettings.password;
-          
+
           // Try to reauthenticate
           if (!window.isLoggingIn) {
             window.isLoggingIn = true;
             await autoLogin();
             window.isLoggingIn = false;
-            
+
             // Retry loading prompts once after reauthentication
-            return await loadPrompts(1);
+            return await loadPrompts(1, searchQuery, favoritesOnly);
           }
         } else {
           // No saved credentials, show login modal
@@ -487,7 +594,7 @@
       if (response.ok) {
         const data = await response.json();
         promptsList.innerHTML = '';
-        
+
         data.prompts.forEach(prompt => {
           const card = document.createElement('div');
           card.className = 'prompt-card';
@@ -495,6 +602,7 @@
             <div class="prompt-title">${prompt.title}</div>
             <div class="prompt-description">${prompt.short_description}</div>
             <div class="prompt-creator">Creator: @${prompt.creator.username}</div>
+            ${prompt.isFavorited ? '<div class="favorite-indicator">❤️ Favorited</div>' : ''}
           `;
           card.onclick = () => {
             if (window.currentSelectPrompt) {
@@ -530,6 +638,32 @@
           </div>
         `;
       }
+    }
+  }
+
+  // Logout function to clear saved user data
+  async function logout() {
+    try {
+      // Clear all user data from extension storage
+      await chrome.storage.sync.remove(['authToken', 'email', 'password', 'username']);
+      
+      // Clear local variables
+      authToken = null;
+      email = null;
+      password = null;
+      username = null;
+      
+      console.log('User logged out successfully');
+      
+      // Close current sidebar
+      hideSidebar();
+      
+      // Show login modal
+      showLoginModal();
+      
+    } catch (error) {
+      console.error('Logout failed:', error);
+      alert('Failed to logout. Please try again.');
     }
   }
 
