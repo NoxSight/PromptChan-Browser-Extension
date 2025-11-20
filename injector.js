@@ -192,7 +192,7 @@
             <div class="sidebar-logo"></div>
             <h3 id="sidebar-title">PromptChan</h3>
           </div>
-          ${username ? `<span class="sidebar-username clickable-username" data-username="${username}">@${username}</span><div class="username-dropdown hidden"><button id="logout-button">Logout</button></div>` : ''}
+          ${username ? `<span class="sidebar-username" data-username="${username}">@${username}</span>` : ''}
           <button class="sidebar-close" id="sidebar-close">&times;</button>
         </div>
         <div class="sidebar-body">
@@ -219,34 +219,6 @@
     
     document.body.appendChild(modal);
     
-    // Username dropdown functionality
-    const usernameEl = modal.querySelector('.clickable-username');
-    const dropdown = modal.querySelector('.username-dropdown');
-    if (usernameEl && dropdown) {
-      usernameEl.onclick = (e) => {
-        e.stopPropagation();
-        dropdown.classList.toggle('hidden');
-      };
-      
-      document.onclick = () => {
-        dropdown.classList.add('hidden');
-      };
-      
-      document.getElementById('logout-button').onclick = async () => {
-        try {
-          await chrome.storage.sync.clear();
-          // Reset local variables
-          email = null;
-          password = null;
-          username = null;
-          authToken = null;
-          hideSidebar();
-          showSidebar(); // Show login modal
-        } catch (error) {
-          console.error('Logout failed:', error);
-        }
-      };
-    }
     
     // Event listeners
     document.getElementById('sidebar-close').onclick = hideSidebar;
@@ -522,6 +494,7 @@
           card.innerHTML = `
             <div class="prompt-title">${prompt.title}</div>
             <div class="prompt-description">${prompt.short_description}</div>
+            <div class="prompt-creator">Creator: @${prompt.creator.username}</div>
           `;
           card.onclick = () => {
             if (window.currentSelectPrompt) {
