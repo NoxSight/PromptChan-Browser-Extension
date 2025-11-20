@@ -195,6 +195,13 @@
 
 .prompts-section, .prompt-details {
   margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.prompts-section {
+  flex: 1;
 }
 
 .prompts-section.hidden, .prompt-details.hidden {
@@ -213,7 +220,8 @@
   margin-bottom: 6px;
 }
 
-.prompt-input-group input {
+.prompt-input-group input,
+.prompt-input-group textarea {
   width: 100%;
   padding: 12px 14px;
   border: 2px solid #e1e5e9;
@@ -221,12 +229,20 @@
   font-size: 14px;
   box-sizing: border-box;
   transition: border-color 0.2s ease;
+  font-family: inherit;
+  resize: vertical;
 }
 
-.prompt-input-group input:focus {
+.prompt-input-group input:focus,
+.prompt-input-group textarea:focus {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.prompt-input-group textarea {
+  min-height: 80px;
+  line-height: 1.5;
 }
 
 .prompt-input-group small {
@@ -357,7 +373,8 @@
 }
 
 .prompts-container {
-  max-height: 300px;
+  flex: 1;
+  height: 100%;
   overflow-y: auto;
   margin-bottom: 15px;
   border: 1px solid #e1e5e9;

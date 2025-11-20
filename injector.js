@@ -354,14 +354,29 @@
         inputs.forEach(input => {
           const inputEl = document.createElement('div');
           inputEl.className = 'prompt-input-group';
-          inputEl.innerHTML = `
-            <label>${input.label || input.name}</label>
-            <input id="prompt-input-${input.name}"
-                   type="${input.type}"
-                   placeholder="${input.placeholder || ''}"
-                   ${input.required ? 'required' : ''}>
-            ${input.description ? `<small>${input.description}</small>` : ''}
-          `;
+          
+          let inputHTML;
+          if (input.type === 'textarea') {
+            inputHTML = `
+              <label>${input.label || input.name}</label>
+              <textarea id="prompt-input-${input.name}"
+                       placeholder="${input.placeholder || ''}"
+                       ${input.required ? 'required' : ''}
+                       rows="4"></textarea>
+              ${input.description ? `<small>${input.description}</small>` : ''}
+            `;
+          } else {
+            inputHTML = `
+              <label>${input.label || input.name}</label>
+              <input id="prompt-input-${input.name}"
+                     type="${input.type}"
+                     placeholder="${input.placeholder || ''}"
+                     ${input.required ? 'required' : ''}>
+              ${input.description ? `<small>${input.description}</small>` : ''}
+            `;
+          }
+          
+          inputEl.innerHTML = inputHTML;
           inputsContainer.appendChild(inputEl);
         });
       } catch (e) {
