@@ -37,6 +37,24 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
                 (function() {
                   window.showPromptchanSidebar = async function() {
                     if (document.getElementById('promptchan-sidebar')) return;
+                    
+                    // Check authentication before showing anything
+                    const settings = await chrome.storage.sync.get(['authToken', 'email', 'password']);
+                    if (!settings.authToken || !settings.email || !settings.password) {
+                      // Show login required message
+                      const modal = document.createElement('div');
+                      modal.id = 'promptchan-sidebar';
+                      modal.innerHTML = '<div style="position:fixed;top:20px;right:20px;background:#f44336;color:white;padding:20px;border-radius:8px;z-index:100000;box-shadow:0 4px 20px rgba(0,0,0,0.3);cursor:pointer;" onclick="this.parentElement.remove();">🔐 Login Required<br><small>Please login via /promptchan first</small></div>';
+                      document.body.appendChild(modal);
+                      // Auto-remove after 3 seconds
+                      setTimeout(() => {
+                        if (modal && modal.parentElement) {
+                          modal.remove();
+                        }
+                      }, 3000);
+                      return;
+                    }
+                    
                     const modal = document.createElement('div');
                     modal.id = 'promptchan-sidebar';
                     modal.innerHTML = '<div style="position:fixed;top:20px;right:20px;background:#667eea;color:white;padding:20px;border-radius:8px;z-index:100000;box-shadow:0 4px 20px rgba(0,0,0,0.3);">Promptchan Sidebar<br><small>Injector loading...</small></div>';

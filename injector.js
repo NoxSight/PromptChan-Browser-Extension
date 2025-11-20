@@ -67,103 +67,120 @@
   async function showSidebar() {
     if (modal) return; // Prevent duplicates
   
-    // Check login status first
-    if (!email || !password) {
+    // Always refresh settings from storage to get latest credentials and authToken
+    const currentSettings = await chrome.storage.sync.get(['email', 'password', 'username', 'authToken']);
+    email = currentSettings.email;
+    password = currentSettings.password;
+    authToken = currentSettings.authToken;
+    username = currentSettings.username;
+  
+    // Check authentication status - require valid authToken to show main sidebar
+    if (!authToken || !email || !password) {
       showLoginModal();
       return;
     }
     
-    let selectedPrompt = null;
-    let bakedPromptText = '';
-  
-    // Show login modal if no credentials
-    function showLoginModal() {
-      modal = document.createElement('div');
-      modal.id = 'promptchan-sidebar';
-      modal.className = 'active';
-      modal.innerHTML = `
-        <div class="sidebar-overlay" id="sidebar-overlay"></div>
-        <div class="sidebar-content">
-          <div class="sidebar-header">
-            <h3>🔐 Login Required</h3>
-            <button class="sidebar-close" id="sidebar-close">&times;</button>
-          </div>
-          <div class="sidebar-body">
-            <div style="padding: 20px;">
-              <p style="margin-bottom: 20px; color: #666;">Enter your credentials to access prompts:</p>
-              <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Email:</label>
-                <input id="login-email" type="email" placeholder="your@email.com" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-              </div>
-              <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Password:</label>
-                <input id="login-password" type="password" placeholder="••••••••" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-              </div>
-              <div style="display: flex; gap: 10px;">
-                <button id="login-submit" class="primary-button" style="flex: 1; padding: 12px;">Login & Save</button>
-                <button id="open-settings" class="secondary-button" style="flex: 1; padding: 12px; background: #f0f0f0; border: none;">Open Settings</button>
-              </div>
-              <p style="margin-top: 15px; font-size: 12px; color: #666; text-align: center;">
-                Credentials will be saved securely to extension settings
-              </p>
+    // Show main sidebar directly if we have token
+    showMainSidebar();
+  }
+
+  // Show login modal function - moved outside to prevent unreachable code
+  function showLoginModal() {
+    modal = document.createElement('div');
+    modal.id = 'promptchan-sidebar';
+    modal.className = 'active';
+    modal.innerHTML = `
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+      <div class="sidebar-content">
+        <div class="sidebar-header">
+          <h3>🔐 Login Required</h3>
+          <button class="sidebar-close" id="sidebar-close">&times;</button>
+        </div>
+        <div class="sidebar-body">
+          <div style="padding: 20px;">
+            <p style="margin-bottom: 20px; color: #666;">Enter your credentials to access prompts:</p>
+            <div style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: 500;">Email:</label>
+              <input id="login-email" type="email" placeholder="your@email.com" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
             </div>
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: 500;">Password:</label>
+              <input id="login-password" type="password" placeholder="••••••••" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button id="login-submit" class="primary-button" style="flex: 1; padding: 12px;">Login & Save</button>
+              <button id="open-settings" class="secondary-button" style="flex: 1; padding: 12px; background: #f0f0f0; border: none;">Open Settings</button>
+            </div>
+            <p style="margin-top: 15px; font-size: 12px; color: #666; text-align: center;">
+              Credentials will be saved securely to extension settings
+            </p>
           </div>
         </div>
-      `;
-  
-      document.body.appendChild(modal);
-  
-      // Event listeners for login modal
-      document.getElementById('sidebar-close').onclick = hideSidebar;
-      document.getElementById('sidebar-overlay').onclick = hideSidebar;
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Event listeners for login modal
+    document.getElementById('sidebar-close').onclick = hideSidebar;
+    document.getElementById('sidebar-overlay').onclick = hideSidebar;
+    
+    document.getElementById('open-settings').onclick = () => {
+      chrome.runtime.openOptionsPage();
+      hideSidebar();
+    };
+
+    document.getElementById('login-submit').onclick = async () => {
+      const loginEmail = document.getElementById('login-email').value.trim();
+      const loginPassword = document.getElementById('login-password').value;
       
-      document.getElementById('open-settings').onclick = () => {
-        chrome.runtime.openOptionsPage();
-        hideSidebar();
-      };
-  
-      document.getElementById('login-submit').onclick = async () => {
-        const loginEmail = document.getElementById('login-email').value.trim();
-        const loginPassword = document.getElementById('login-password').value;
-        
-        if (!loginEmail || !loginPassword) {
-          alert('Please enter both email and password');
-          return;
+      if (!loginEmail || !loginPassword) {
+        alert('Please enter both email and password');
+        return;
+      }
+
+      try {
+        // Save credentials to extension storage
+        await chrome.storage.sync.set({
+          email: loginEmail,
+          password: loginPassword
+        });
+
+        // Update local variables
+        email = loginEmail;
+        password = loginPassword;
+
+        // Try auto-login with new credentials
+        if (!window.isLoggingIn) {
+          window.isLoggingIn = true;
+          await autoLogin();
+          window.isLoggingIn = false;
         }
-  
-        try {
-          // Save credentials to extension storage
-          await chrome.storage.sync.set({
-            email: loginEmail,
-            password: loginPassword
-          });
-  
-          // Update local variables
-          email = loginEmail;
-          password = loginPassword;
-  
-          // Try auto-login with new credentials
-          if (!window.isLoggingIn) {
-            window.isLoggingIn = true;
-            await autoLogin();
-            window.isLoggingIn = false;
-          }
-  
-          // Reload all settings including username
-          const updatedSettings = await chrome.storage.sync.get(['authToken', 'username']);
-          authToken = updatedSettings.authToken;
-          username = updatedSettings.username;
-  
-          // Close login modal and show main sidebar
+
+        // Reload all settings including username
+        const updatedSettings = await chrome.storage.sync.get(['authToken', 'username']);
+        authToken = updatedSettings.authToken;
+        username = updatedSettings.username;
+
+        // Close login modal and show main sidebar if authentication successful
+        if (authToken) {
           hideSidebar();
-          showSidebar();
-        } catch (error) {
-          console.error('Login save failed:', error);
-          alert('Failed to save credentials. Please try again.');
+          showMainSidebar(); // Show main sidebar directly instead of calling showSidebar()
+        } else {
+          alert('Login failed. Please check your credentials.');
         }
-      };
-    }
-  
+      } catch (error) {
+        console.error('Login save failed:', error);
+        alert('Failed to save credentials. Please try again.');
+      }
+    };
+  }
+
+  // Show main sidebar with prompts after successful authentication
+  async function showMainSidebar() {
+    let selectedPrompt = null;
+    let bakedPromptText = '';
+
     modal = document.createElement('div');
     modal.id = 'promptchan-sidebar';
     modal.className = 'active';
@@ -234,7 +251,7 @@
     // Event listeners
     document.getElementById('sidebar-close').onclick = hideSidebar;
     document.getElementById('cancel-button').onclick = hideSidebar;
-    document.getElementById('bake-button').onclick = () => bakePrompt();
+    document.getElementById('bake-button').onclick = () => bakePrompt(selectedPrompt, bakedPromptText);
     document.getElementById('back-to-prompts').onclick = () => {
       const promptsSection = document.getElementById('prompts-section');
       const promptDetails = document.getElementById('prompt-details');
@@ -248,25 +265,101 @@
         sidebarTitle.textContent = 'PromptChan';
       }
     };
-
-    // Auto-login if credentials available and not already logging in
-    if (email && password && !authToken && !window.isLoggingIn) {
-      window.isLoggingIn = true;
-      await autoLogin();
-      window.isLoggingIn = false;
-      loginCompleted = true;
-      
-      // Reload all settings to get new authToken and username
-      const updatedSettings = await chrome.storage.sync.get(['authToken', 'username']);
-      authToken = updatedSettings.authToken;
-      username = updatedSettings.username;
-    }
     
     // Close on overlay click
     document.getElementById('sidebar-overlay').onclick = hideSidebar;
     
-    // Load prompts after login/auth check
+    // Load prompts after authentication
     await loadPrompts();
+    
+    // Nested function to handle prompt selection
+    function selectPrompt(prompt) {
+      selectedPrompt = prompt;
+      document.getElementById('prompts-section').classList.add('hidden');
+      document.getElementById('prompt-details').classList.remove('hidden');
+      
+      const titleEl = document.getElementById('prompt-title');
+      const descEl = document.getElementById('prompt-description');
+      const templateContainer = document.getElementById('prompt-template');
+      const inputsContainer = document.getElementById('prompt-inputs');
+      
+      if (titleEl) titleEl.textContent = prompt.title;
+      if (descEl) descEl.textContent = prompt.long_description || '';
+      inputsContainer.innerHTML = '';
+      templateContainer.innerHTML = `<pre class="prompt-template-text">${prompt.template}</pre>`;
+      
+      try {
+        const inputs = JSON.parse(prompt.inputs);
+        inputs.forEach(input => {
+          const inputEl = document.createElement('div');
+          inputEl.className = 'prompt-input-group';
+          inputEl.innerHTML = `
+            <label>${input.label || input.name}</label>
+            <input id="prompt-input-${input.name}"
+                   type="${input.type}"
+                   placeholder="${input.placeholder || ''}"
+                   ${input.required ? 'required' : ''}>
+            ${input.description ? `<small>${input.description}</small>` : ''}
+          `;
+          inputsContainer.appendChild(inputEl);
+        });
+      } catch (e) {
+        console.log('Error parsing prompt inputs:', e);
+        inputsContainer.innerHTML = '<p>Invalid input configuration</p>';
+      }
+    }
+
+    // Nested function to handle prompt baking
+    function bakePrompt(selectedPrompt, bakedPromptText) {
+      if (!selectedPrompt) return;
+      
+      let finalText = selectedPrompt.template;
+      
+      try {
+        const inputs = JSON.parse(selectedPrompt.inputs);
+        inputs.forEach(input => {
+          const inputValue = document.getElementById(`prompt-input-${input.name}`)?.value || '';
+          const placeholder = `{{${input.name}}}`;
+          finalText = finalText.replace(new RegExp(placeholder, 'g'), inputValue);
+        });
+        bakedPromptText = finalText;
+        document.getElementById('prompt-template').innerHTML = `<pre class="prompt-template-text baked">${finalText}</pre>`;
+        document.getElementById('bake-button').textContent = 'Baked!';
+        document.getElementById('bake-button').disabled = true;
+        setTimeout(() => {
+          document.getElementById('bake-button').textContent = 'Bake Prompt';
+          document.getElementById('bake-button').disabled = false;
+        }, 2000);
+        
+        // Auto-inject after baking
+        const targetInput = document.querySelector(config.targetSelector);
+        if (targetInput && finalText.trim()) {
+          if (config.isContentEditable) {
+            const pElement = targetInput.querySelector('p');
+            if (pElement) {
+              pElement.textContent = finalText;
+            } else {
+              targetInput.innerHTML = `<p>${finalText}</p>`;
+            }
+            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+            targetInput.focus();
+          } else {
+            targetInput.value = finalText;
+            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+            targetInput.focus();
+          }
+          hideSidebar();
+          console.log(`Baked prompt auto-injected into ${config.siteName}`);
+        }
+      } catch (e) {
+        console.log('Error baking prompt:', e);
+      }
+    }
+
+    // Expose selectPrompt function to loadPrompts
+    window.currentSelectPrompt = selectPrompt;
   }
   
   // Expose globally for context menu
@@ -285,53 +378,6 @@
     }
   }
 
-  function bakePrompt() {
-    if (!selectedPrompt) return;
-    
-    let finalText = selectedPrompt.template;
-    
-    try {
-      const inputs = JSON.parse(selectedPrompt.inputs);
-      inputs.forEach(input => {
-        const inputValue = document.getElementById(`prompt-input-${input.name}`)?.value || '';
-        const placeholder = `{{${input.name}}}`;
-        finalText = finalText.replace(new RegExp(placeholder, 'g'), inputValue);
-      });
-      bakedPromptText = finalText;
-      document.getElementById('prompt-template').innerHTML = `<pre class="prompt-template-text baked">${finalText}</pre>`;
-      document.getElementById('bake-button').textContent = 'Baked!';
-      document.getElementById('bake-button').disabled = true;
-      setTimeout(() => {
-        document.getElementById('bake-button').textContent = 'Bake Prompt';
-        document.getElementById('bake-button').disabled = false;
-      }, 2000);
-      
-      // Auto-inject after baking
-      const targetInput = document.querySelector(config.targetSelector);
-      if (targetInput && finalText.trim()) {
-        if (config.isContentEditable) {
-          const pElement = targetInput.querySelector('p');
-          if (pElement) {
-            pElement.textContent = finalText;
-          } else {
-            targetInput.innerHTML = `<p>${finalText}</p>`;
-          }
-          targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-          targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-          targetInput.focus();
-        } else {
-          targetInput.value = finalText;
-          targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-          targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-          targetInput.focus();
-        }
-        hideSidebar();
-        console.log(`Baked prompt auto-injected into ${config.siteName}`);
-      }
-    } catch (e) {
-      console.log('Error baking prompt:', e);
-    }
-  }
 
 
   // Start watching input
@@ -389,24 +435,24 @@
     }
   }
 
-  // Listen for manual token changes (avoid auto-refresh loops)
-  let loginCompleted = false;
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync' && changes.authToken && !window.isLoggingIn && loginCompleted) {
-      if (modal) {
-        hideSidebar();
-        showSidebar();
-      }
-    }
-  });
-  // Load prompts function
-  async function loadPrompts() {
+  // Remove auto-refresh on token changes since we now always require fresh authentication
+  // let loginCompleted = false;
+  // chrome.storage.onChanged.addListener((changes, area) => {
+  //   if (area === 'sync' && changes.authToken && !window.isLoggingIn && loginCompleted) {
+  //     if (modal) {
+  //       hideSidebar();
+  //       showSidebar();
+  //     }
+  //   }
+  // });
+  // Load prompts function with automatic reauthentication on 403
+  async function loadPrompts(retryCount = 0) {
     try {
       const promptsList = document.getElementById('prompts-list');
       if (!promptsList) return;
       
       // Always reload latest authToken before checking
-      const currentSettings = await chrome.storage.sync.get(['authToken']);
+      const currentSettings = await chrome.storage.sync.get(['authToken', 'email', 'password']);
       const currentAuthToken = currentSettings.authToken;
       
       if (!currentAuthToken) {
@@ -429,15 +475,42 @@
         return;
       }
     
-    // Update local authToken
-    authToken = currentAuthToken;
+      // Update local authToken
+      authToken = currentAuthToken;
 
-    console.log('Loading prompts...');
-    const response = await fetch(`${apiBaseUrl}/api/prompts`, {
-      headers: {
-        'Authorization': `Bearer ${currentAuthToken}`
+      console.log('Loading prompts...');
+      const response = await fetch(`${apiBaseUrl}/api/prompts`, {
+        headers: {
+          'Authorization': `Bearer ${currentAuthToken}`
+        }
+      });
+
+      if (response.status === 403 && retryCount === 0) {
+        // Token is invalid, try to reauthenticate
+        console.log('Token invalid (403), attempting reauthentication...');
+        
+        // Check if we have saved credentials
+        if (currentSettings.email && currentSettings.password) {
+          // Update local variables
+          email = currentSettings.email;
+          password = currentSettings.password;
+          
+          // Try to reauthenticate
+          if (!window.isLoggingIn) {
+            window.isLoggingIn = true;
+            await autoLogin();
+            window.isLoggingIn = false;
+            
+            // Retry loading prompts once after reauthentication
+            return await loadPrompts(1);
+          }
+        } else {
+          // No saved credentials, show login modal
+          hideSidebar();
+          showLoginModal();
+          return;
+        }
       }
-    });
 
       if (response.ok) {
         const data = await response.json();
@@ -450,49 +523,41 @@
             <div class="prompt-title">${prompt.title}</div>
             <div class="prompt-description">${prompt.short_description}</div>
           `;
-          card.onclick = () => selectPrompt(prompt);
+          card.onclick = () => {
+            if (window.currentSelectPrompt) {
+              window.currentSelectPrompt(prompt);
+            }
+          };
           promptsList.appendChild(card);
         });
+      } else if (response.status === 403 && retryCount > 0) {
+        // Reauthentication failed, show login modal
+        console.log('Reauthentication failed, showing login modal');
+        hideSidebar();
+        showLoginModal();
+      } else {
+        // Other error, show error message
+        promptsList.innerHTML = `
+          <div style="padding: 20px; text-align: center; color: #666;">
+            <h4>Error Loading Prompts</h4>
+            <p>Failed to load prompts. Please try again.</p>
+            <button onclick="window.location.reload()" class="primary-button" style="margin-top: 15px;">Retry</button>
+          </div>
+        `;
       }
     } catch (error) {
       console.log('Failed to load prompts:', error);
+      const promptsList = document.getElementById('prompts-list');
+      if (promptsList) {
+        promptsList.innerHTML = `
+          <div style="padding: 20px; text-align: center; color: #666;">
+            <h4>Network Error</h4>
+            <p>Could not connect to the server. Please check your connection.</p>
+            <button onclick="window.location.reload()" class="primary-button" style="margin-top: 15px;">Retry</button>
+          </div>
+        `;
+      }
     }
   }
 
-  // Select prompt and show inputs
-  function selectPrompt(prompt) {
-    selectedPrompt = prompt;
-    document.getElementById('prompts-section').classList.add('hidden');
-    document.getElementById('prompt-details').classList.remove('hidden');
-    
-    const titleEl = document.getElementById('prompt-title');
-    const descEl = document.getElementById('prompt-description');
-    const templateContainer = document.getElementById('prompt-template');
-    const inputsContainer = document.getElementById('prompt-inputs');
-    
-    if (titleEl) titleEl.textContent = prompt.title;
-    if (descEl) descEl.textContent = prompt.long_description || '';
-    inputsContainer.innerHTML = '';
-    templateContainer.innerHTML = `<pre class="prompt-template-text">${prompt.template}</pre>`;
-    
-    try {
-      const inputs = JSON.parse(prompt.inputs);
-      inputs.forEach(input => {
-        const inputEl = document.createElement('div');
-        inputEl.className = 'prompt-input-group';
-        inputEl.innerHTML = `
-          <label>${input.label || input.name}</label>
-          <input id="prompt-input-${input.name}"
-                 type="${input.type}"
-                 placeholder="${input.placeholder || ''}"
-                 ${input.required ? 'required' : ''}>
-          ${input.description ? `<small>${input.description}</small>` : ''}
-        `;
-        inputsContainer.appendChild(inputEl);
-      });
-    } catch (e) {
-      console.log('Error parsing prompt inputs:', e);
-      inputsContainer.innerHTML = '<p>Invalid input configuration</p>';
-    }
-  }
 })(window.INJECTOR_CONFIG || {});

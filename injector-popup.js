@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   (function() {
                     window.showPromptchanSidebar = async function() {
                       if (document.getElementById('promptchan-sidebar')) return;
+                      
                       const modal = document.createElement('div');
                       modal.id = 'promptchan-sidebar';
                       modal.innerHTML = '<div style="position:fixed;top:20px;right:20px;background:#667eea;color:white;padding:20px;border-radius:8px;z-index:100000;box-shadow:0 4px 20px rgba(0,0,0,0.3);">Promptchan Sidebar<br><small>Injector loading...</small></div>';
