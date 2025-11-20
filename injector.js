@@ -393,6 +393,25 @@
 
       try {
         const inputs = JSON.parse(selectedPrompt.inputs);
+        
+        // Check for empty required fields
+        const emptyRequiredFields = [];
+        inputs.forEach(input => {
+          const inputElement = document.getElementById(`prompt-input-${input.name}`);
+          const inputValue = inputElement?.value || '';
+          
+          if (input.required && inputValue.trim() === '') {
+            emptyRequiredFields.push(input.label || input.name);
+          }
+        });
+        
+        // If there are empty required fields, show alert and prevent baking
+        if (emptyRequiredFields.length > 0) {
+          alert(`Please fill in the following required fields:\n- ${emptyRequiredFields.join('\n- ')}`);
+          return;
+        }
+        
+        // Process inputs if all required fields are filled
         inputs.forEach(input => {
           const inputValue = document.getElementById(`prompt-input-${input.name}`)?.value || '';
           const placeholder = `{{${input.name}}}`;
@@ -411,11 +430,22 @@
         const targetInput = document.querySelector(config.targetSelector);
         if (targetInput && finalText.trim()) {
           if (config.isContentEditable) {
-            const pElement = targetInput.querySelector('p');
-            if (pElement) {
-              pElement.textContent = finalText;
+            // For ChatGPT: Convert \n to separate <p> tags
+            if (config.siteName === 'ChatGPT') {
+              const lines = finalText.split('\n');
+              const paragraphsHTML = lines.map(line => {
+                const trimmedLine = line.trim();
+                return trimmedLine === '' ? '<p></p>' : `<p>${trimmedLine}</p>`;
+              }).join('');
+              targetInput.innerHTML = paragraphsHTML;
             } else {
-              targetInput.innerHTML = `<p>${finalText}</p>`;
+              // For other contentEditable sites, use original logic
+              const pElement = targetInput.querySelector('p');
+              if (pElement) {
+                pElement.textContent = finalText;
+              } else {
+                targetInput.innerHTML = `<p>${finalText}</p>`;
+              }
             }
             targetInput.dispatchEvent(new Event('input', { bubbles: true }));
             targetInput.dispatchEvent(new Event('change', { bubbles: true }));
